@@ -1,6 +1,6 @@
 
 import { Button } from '@/components/ui/button';
-import { Share, Printer, FilePdf } from 'lucide-react';
+import { Share, Printer, FileText } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface ActionButtonsProps {
@@ -31,7 +31,7 @@ export const ActionButtons = ({
         <span>طباعة</span>
       </Button>
       <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex items-center gap-1">
-        <FilePdf className="h-4 w-4" />
+        <FileText className="h-4 w-4" />
         <span>PDF</span>
       </Button>
     </div>

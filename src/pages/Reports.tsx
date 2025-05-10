@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FilePdf, Share, Printer } from 'lucide-react';
+import { FileText, Share, Printer } from 'lucide-react';
 import { ActionButtons } from '@/components/ActionButtons';
 
 const Reports = () => {
