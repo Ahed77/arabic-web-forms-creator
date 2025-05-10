@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Clock } from 'lucide-react';
 import { ActionButtons } from '@/components/ActionButtons';
+import { getFromStorage, saveToStorage } from '@/utils/localStorage';
 
 interface Product {
   id: string;
@@ -28,20 +29,37 @@ interface InvoiceItem {
   total: number;
 }
 
-const SAMPLE_PRODUCTS: Product[] = [
-  { id: '1', name: 'شاحن', barcode: 'SCAN2829', price: 1200, quantity: 1, available: 1500 }
-];
+interface Invoice {
+  id: string;
+  date: string;
+  items: InvoiceItem[];
+  total: number;
+}
+
+const PRODUCTS_STORAGE_KEY = 'inventory-products';
+const INVOICES_STORAGE_KEY = 'sales-invoices';
 
 const Sales = () => {
   const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<number>(0);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
+  const [savedInvoices, setSavedInvoices] = useState<Invoice[]>([]);
+  
+  // Load products from local storage on initial render
+  useEffect(() => {
+    const savedProducts = getFromStorage<Product[]>(PRODUCTS_STORAGE_KEY, []);
+    setProducts(savedProducts);
+    
+    const invoices = getFromStorage<Invoice[]>(INVOICES_STORAGE_KEY, []);
+    setSavedInvoices(invoices);
+  }, []);
   
   const handleProductSelect = (value: string) => {
     setSelectedProductId(value);
-    const product = SAMPLE_PRODUCTS.find(p => p.id === value);
+    const product = products.find(p => p.id === value);
     if (product) {
       setPrice(product.price);
     }
@@ -57,7 +75,7 @@ const Sales = () => {
       return;
     }
 
-    const product = SAMPLE_PRODUCTS.find(p => p.id === selectedProductId);
+    const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
     if (quantity <= 0) {
@@ -68,21 +86,38 @@ const Sales = () => {
       });
       return;
     }
+    
+    // Check if item already exists in invoice
+    const existingItemIndex = invoiceItems.findIndex(item => item.productId === product.id);
+    
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedItems = [...invoiceItems];
+      updatedItems[existingItemIndex].quantity += quantity;
+      updatedItems[existingItemIndex].total = updatedItems[existingItemIndex].quantity * updatedItems[existingItemIndex].price;
+      setInvoiceItems(updatedItems);
+      
+      toast({
+        title: "تم التحديث",
+        description: `تم تحديث كمية ${product.name} في الفاتورة`
+      });
+    } else {
+      // Add new item
+      const newItem: InvoiceItem = {
+        productId: product.id,
+        productName: product.name,
+        barcode: product.barcode,
+        quantity: quantity,
+        price: price,
+        total: price * quantity
+      };
 
-    const newItem: InvoiceItem = {
-      productId: product.id,
-      productName: product.name,
-      barcode: product.barcode,
-      quantity: quantity,
-      price: price,
-      total: price * quantity
-    };
-
-    setInvoiceItems([...invoiceItems, newItem]);
-    toast({
-      title: "تمت الإضافة",
-      description: `تمت إضافة ${product.name} إلى الفاتورة`
-    });
+      setInvoiceItems([...invoiceItems, newItem]);
+      toast({
+        title: "تمت الإضافة",
+        description: `تمت إضافة ${product.name} إلى الفاتورة`
+      });
+    }
 
     // Reset form
     setSelectedProductId("");
@@ -94,6 +129,52 @@ const Sales = () => {
     const newItems = [...invoiceItems];
     newItems.splice(index, 1);
     setInvoiceItems(newItems);
+  };
+  
+  const handleSaveInvoice = () => {
+    if (invoiceItems.length === 0) {
+      toast({
+        title: "خطأ",
+        description: "لا يمكن حفظ فاتورة فارغة",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Create new invoice
+    const newInvoice: Invoice = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      items: [...invoiceItems],
+      total: totalInvoiceAmount
+    };
+    
+    // Update products quantities in inventory
+    const updatedProducts = [...products];
+    
+    for (const item of invoiceItems) {
+      const productIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (productIndex >= 0) {
+        updatedProducts[productIndex].available -= item.quantity;
+      }
+    }
+    
+    // Save updated products to local storage
+    saveToStorage(PRODUCTS_STORAGE_KEY, updatedProducts);
+    setProducts(updatedProducts);
+    
+    // Save invoice
+    const updatedInvoices = [...savedInvoices, newInvoice];
+    saveToStorage(INVOICES_STORAGE_KEY, updatedInvoices);
+    setSavedInvoices(updatedInvoices);
+    
+    toast({
+      title: "تم إنشاء الفاتورة",
+      description: "تم حفظ الفاتورة بنجاح"
+    });
+    
+    // Clear invoice items
+    setInvoiceItems([]);
   };
 
   const totalInvoiceAmount = invoiceItems.reduce((sum, item) => sum + item.total, 0);
@@ -110,10 +191,22 @@ const Sales = () => {
           <Button 
             variant="outline" 
             className="flex items-center gap-2"
-            onClick={() => toast({ title: "جاري التحميل", description: "يتم تحميل الفواتير السابقة" })}
+            onClick={() => {
+              if (savedInvoices.length === 0) {
+                toast({
+                  title: "لا توجد فواتير",
+                  description: "لا يوجد فواتير سابقة"
+                });
+              } else {
+                toast({ 
+                  title: "الفواتير السابقة", 
+                  description: `تم العثور على ${savedInvoices.length} فاتورة` 
+                });
+              }
+            }}
           >
             <Clock className="h-4 w-4" />
-            عرض الفواتير السابقة
+            عرض الفواتير السابقة ({savedInvoices.length})
           </Button>
         </div>
         
@@ -129,8 +222,8 @@ const Sales = () => {
                 <SelectValue placeholder="-- اختر منتج --" />
               </SelectTrigger>
               <SelectContent>
-                {SAMPLE_PRODUCTS.map(product => (
-                  <SelectItem key={product.id} value={product.id}>
+                {products.map(product => (
+                  <SelectItem key={product.id} value={product.id} disabled={product.available <= 0}>
                     {product.name} (المتوفر: {product.available})
                   </SelectItem>
                 ))}
@@ -163,13 +256,14 @@ const Sales = () => {
 
             {selectedProductId && (
               <p className="text-sm text-gray-500 text-right">
-                السعر المسجل بالمخزون: {SAMPLE_PRODUCTS.find(p => p.id === selectedProductId)?.price.toFixed(2)}
+                السعر المسجل بالمخزون: {products.find(p => p.id === selectedProductId)?.price.toFixed(2)}
               </p>
             )}
 
             <Button 
               className="w-full bg-green-500 hover:bg-green-600 flex items-center justify-center gap-2"
               onClick={handleAddToInvoice}
+              disabled={!selectedProductId || products.find(p => p.id === selectedProductId)?.available === 0}
             >
               <Plus className="h-4 w-4" />
               إضافة للفاتورة
@@ -231,13 +325,7 @@ const Sales = () => {
             <Button 
               className="bg-blue-500 hover:bg-blue-600 w-full sm:w-auto"
               disabled={invoiceItems.length === 0}
-              onClick={() => {
-                toast({
-                  title: "تم إنشاء الفاتورة",
-                  description: "تم حفظ الفاتورة بنجاح"
-                });
-                setInvoiceItems([]);
-              }}
+              onClick={handleSaveInvoice}
             >
               حفظ الفاتورة
             </Button>

@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Plus, UserPlus, Search, Calendar, Phone, Users } from 'lucide-react';
 import { ActionButtons } from '@/components/ActionButtons';
+import { getFromStorage, saveToStorage } from '@/utils/localStorage';
 
 interface Debtor {
   id: string;
@@ -30,39 +31,16 @@ interface Transaction {
   notes: string;
 }
 
-const SAMPLE_DEBTORS: Debtor[] = [
-  { 
-    id: '1', 
-    name: 'حسام اخي', 
-    phone: '+96777846767', 
-    type: 'customer',
-    totalDebt: 1500,
-    totalPayment: 1200
-  }
-];
-
-const SAMPLE_TRANSACTIONS: Transaction[] = [
-  { 
-    id: '1', 
-    debtorId: '1', 
-    type: 'debt', 
-    amount: 1500, 
-    date: '2025-05-09', 
-    notes: 'باقه' 
-  },
-  { 
-    id: '2', 
-    debtorId: '1', 
-    type: 'payment', 
-    amount: 1200, 
-    date: '2025-05-09', 
-    notes: 'سداد حق باقه' 
-  }
-];
+const DEBTORS_STORAGE_KEY = 'debts-debtors';
+const TRANSACTIONS_STORAGE_KEY = 'debts-transactions';
 
 const Debts = () => {
   const { toast } = useToast();
+  const [debtors, setDebtors] = useState<Debtor[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const [addDebtorName, setAddDebtorName] = useState('');
   const [addDebtorPhone, setAddDebtorPhone] = useState('');
   const [addDebtorType, setAddDebtorType] = useState<'customer' | 'supplier'>('customer');
@@ -71,6 +49,51 @@ const Debts = () => {
   const [transactionType, setTransactionType] = useState<'debt' | 'payment'>('debt');
   const [transactionAmount, setTransactionAmount] = useState('');
   const [transactionNotes, setTransactionNotes] = useState('');
+  
+  // Load data from local storage on initial render
+  useEffect(() => {
+    const savedDebtors = getFromStorage<Debtor[]>(DEBTORS_STORAGE_KEY, []);
+    const savedTransactions = getFromStorage<Transaction[]>(TRANSACTIONS_STORAGE_KEY, []);
+    
+    setDebtors(savedDebtors.length > 0 ? savedDebtors : [
+      { 
+        id: '1', 
+        name: 'حسام اخي', 
+        phone: '+96777846767', 
+        type: 'customer',
+        totalDebt: 1500,
+        totalPayment: 1200
+      }
+    ]);
+    
+    setTransactions(savedTransactions.length > 0 ? savedTransactions : [
+      { 
+        id: '1', 
+        debtorId: '1', 
+        type: 'debt', 
+        amount: 1500, 
+        date: '2025-05-09', 
+        notes: 'باقه' 
+      },
+      { 
+        id: '2', 
+        debtorId: '1', 
+        type: 'payment', 
+        amount: 1200, 
+        date: '2025-05-09', 
+        notes: 'سداد حق باقه' 
+      }
+    ]);
+  }, []);
+  
+  // Save data to local storage whenever it changes
+  useEffect(() => {
+    saveToStorage(DEBTORS_STORAGE_KEY, debtors);
+  }, [debtors]);
+  
+  useEffect(() => {
+    saveToStorage(TRANSACTIONS_STORAGE_KEY, transactions);
+  }, [transactions]);
   
   const handleSelectDebtor = (debtor: Debtor) => {
     setSelectedDebtor(debtor);
@@ -85,6 +108,18 @@ const Debts = () => {
       });
       return;
     }
+    
+    // Create new debtor
+    const newDebtor: Debtor = {
+      id: Date.now().toString(),
+      name: addDebtorName,
+      phone: addDebtorPhone,
+      type: addDebtorType,
+      totalDebt: 0,
+      totalPayment: 0
+    };
+    
+    setDebtors([...debtors, newDebtor]);
     
     toast({
       title: "تمت الإضافة",
@@ -117,6 +152,42 @@ const Debts = () => {
       return;
     }
     
+    // Create new transaction
+    const amount = parseFloat(transactionAmount);
+    const newTransaction: Transaction = {
+      id: Date.now().toString(),
+      debtorId: selectedDebtor.id,
+      type: transactionType,
+      amount: amount,
+      date: new Date().toISOString().split('T')[0],
+      notes: transactionNotes
+    };
+    
+    // Update transactions
+    setTransactions([...transactions, newTransaction]);
+    
+    // Update debtor totals
+    const updatedDebtors = debtors.map(debtor => {
+      if (debtor.id === selectedDebtor.id) {
+        return {
+          ...debtor,
+          totalDebt: transactionType === 'debt' ? debtor.totalDebt + amount : debtor.totalDebt,
+          totalPayment: transactionType === 'payment' ? debtor.totalPayment + amount : debtor.totalPayment
+        };
+      }
+      return debtor;
+    });
+    
+    setDebtors(updatedDebtors);
+    
+    // Update selected debtor
+    if (selectedDebtor) {
+      const updatedDebtor = updatedDebtors.find(d => d.id === selectedDebtor.id);
+      if (updatedDebtor) {
+        setSelectedDebtor(updatedDebtor);
+      }
+    }
+    
     toast({
       title: "تمت الإضافة",
       description: `تمت إضافة معاملة جديدة بنجاح`
@@ -136,6 +207,11 @@ const Debts = () => {
     if (debtor.totalDebt === 0) return 100;
     return Math.round((debtor.totalPayment / debtor.totalDebt) * 100);
   };
+  
+  // Filter debtors based on search term
+  const filteredDebtors = debtors.filter(debtor => 
+    debtor.name.includes(searchTerm) || debtor.phone.includes(searchTerm)
+  );
   
   return (
     <Layout>
@@ -251,6 +327,8 @@ const Debts = () => {
               placeholder="بحث بالاسم أو الهاتف..." 
               className="pr-10 text-right"
               dir="rtl"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
@@ -344,6 +422,11 @@ const Debts = () => {
                     <Button 
                       className="w-full"
                       variant="outline"
+                      onClick={() => {
+                        setTransactionType('debt');
+                        setTransactionAmount('');
+                        setTransactionNotes('');
+                      }}
                     >
                       إلغاء
                     </Button>
@@ -399,7 +482,10 @@ const Debts = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {SAMPLE_TRANSACTIONS.filter(t => t.debtorId === selectedDebtor.id).map((transaction) => (
+                  {transactions
+                    .filter(t => t.debtorId === selectedDebtor.id)
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell>{new Date(transaction.date).toLocaleDateString('ar-SA')}</TableCell>
                       <TableCell>{transaction.notes}</TableCell>
@@ -417,37 +503,54 @@ const Debts = () => {
           </Card>
         ) : (
           <div>
-            {SAMPLE_DEBTORS.map((debtor) => (
-              <Card 
-                key={debtor.id} 
-                className="mb-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => handleSelectDebtor(debtor)}
-              >
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${debtor.type === 'customer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                      {debtor.type === 'customer' ? 'عميل' : 'مورد'}
-                    </span>
+            {filteredDebtors.length > 0 ? (
+              filteredDebtors.map((debtor) => (
+                <Card 
+                  key={debtor.id} 
+                  className="mb-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => handleSelectDebtor(debtor)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${debtor.type === 'customer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                        {debtor.type === 'customer' ? 'عميل' : 'مورد'}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-semibold">{debtor.name}</h3>
                   </div>
-                  <h3 className="text-lg font-semibold">{debtor.name}</h3>
-                </div>
-                
-                <div className="flex justify-between items-center mt-2">
-                  <div className="flex items-center gap-1">
-                    <Phone size={14} className="text-gray-500" />
-                    <span className="text-sm text-gray-500">{debtor.phone}</span>
+                  
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center gap-1">
+                      <Phone size={14} className="text-gray-500" />
+                      <span className="text-sm text-gray-500">{debtor.phone}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold ${getBalance(debtor) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        {getBalance(debtor).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {getPaymentPercentage(debtor)}% مسدد
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${getBalance(debtor) > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      {getBalance(debtor).toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {getPaymentPercentage(debtor)}% مسدد
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            ) : (
+              <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-gray-500">لا يوجد مدينين مطابقين للبحث</p>
+                {searchTerm ? (
+                  <Button
+                    variant="ghost"
+                    className="mt-2 text-blue-500"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    عرض جميع المدينين
+                  </Button>
+                ) : (
+                  <p className="text-sm text-gray-400 mt-2">قم بإضافة مدين جديد من خلال الزر أعلاه</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

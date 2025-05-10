@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,8 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
 import { Barcode } from 'lucide-react';
+import { getFromStorage, saveToStorage } from '@/utils/localStorage';
+import { ActionButtons } from '@/components/ActionButtons';
 
 // Product type
 interface Product {
@@ -16,6 +18,8 @@ interface Product {
   quantity: number;
   price: number;
 }
+
+const STORAGE_KEY = 'inventory-products';
 
 const Inventory = () => {
   const { toast } = useToast();
@@ -28,6 +32,18 @@ const Inventory = () => {
     price: 0,
   });
   const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null);
+
+  // Load products from local storage on initial render
+  useEffect(() => {
+    const savedProducts = getFromStorage<Product[]>(STORAGE_KEY, []);
+    setProducts(savedProducts);
+  }, []);
+
+  // Save products to local storage whenever they change
+  useEffect(() => {
+    saveToStorage(STORAGE_KEY, products);
+  }, [products]);
 
   // Handle input change for new product
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,12 +65,43 @@ const Inventory = () => {
       return;
     }
 
-    const product: Product = {
-      id: Date.now().toString(),
-      ...newProduct,
-    };
+    // Check for duplicate barcode
+    if (products.some(p => p.barcode === newProduct.barcode && (!editProductId || p.id !== editProductId))) {
+      toast({
+        title: "خطأ في الباركود",
+        description: "هذا الباركود مستخدم بالفعل",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setProducts([...products, product]);
+    if (editProductId) {
+      // Update existing product
+      const updatedProducts = products.map(product => 
+        product.id === editProductId 
+          ? { ...newProduct, id: editProductId } 
+          : product
+      );
+      setProducts(updatedProducts);
+      
+      toast({
+        title: "تم تحديث المنتج",
+        description: "تم تحديث المنتج بنجاح",
+      });
+      setEditProductId(null);
+    } else {
+      // Add new product
+      const product: Product = {
+        id: Date.now().toString(),
+        ...newProduct,
+      };
+      setProducts([...products, product]);
+      
+      toast({
+        title: "تم إضافة المنتج",
+        description: "تمت إضافة المنتج بنجاح",
+      });
+    }
     
     // Reset form
     setNewProduct({
@@ -63,10 +110,33 @@ const Inventory = () => {
       quantity: 0,
       price: 0,
     });
+  };
 
+  // Edit product
+  const handleEditProduct = (product: Product) => {
+    setNewProduct({
+      barcode: product.barcode,
+      name: product.name,
+      quantity: product.quantity,
+      price: product.price,
+    });
+    setEditProductId(product.id);
+    
+    // Open the dialog
+    const dialogTrigger = document.querySelector('[data-testid="add-product-trigger"]') as HTMLButtonElement;
+    if (dialogTrigger) {
+      dialogTrigger.click();
+    }
+  };
+
+  // Delete product
+  const handleDeleteProduct = (productId: string) => {
+    const updatedProducts = products.filter(product => product.id !== productId);
+    setProducts(updatedProducts);
+    
     toast({
-      title: "تم إضافة المنتج",
-      description: "تمت إضافة المنتج بنجاح",
+      title: "تم حذف المنتج",
+      description: "تم حذف المنتج بنجاح",
     });
   };
 
@@ -88,31 +158,6 @@ const Inventory = () => {
     setShowBarcodeDialog(false);
   };
 
-  // Generate PDF for printing
-  const generatePDF = () => {
-    if (products.length === 0) {
-      toast({
-        title: "لا يوجد منتجات",
-        description: "لا يمكن إنشاء PDF بدون منتجات",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "جاري التحضير",
-      description: "يتم تحضير ملف PDF للطباعة",
-    });
-
-    // In a real app, this would generate a PDF
-    setTimeout(() => {
-      toast({
-        title: "تم التحضير",
-        description: "تم تحضير ملف PDF بنجاح",
-      });
-    }, 1500);
-  };
-
   // Filter products based on search term
   const filteredProducts = products.filter(product => 
     product.name.includes(searchTerm) || product.barcode.includes(searchTerm)
@@ -129,15 +174,20 @@ const Inventory = () => {
         <div className="mb-6">
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="w-full bg-green-500 hover:bg-green-600 mb-4">
-                <span className="ml-2">+</span> إضافة منتج جديد
+              <Button 
+                className="w-full bg-green-500 hover:bg-green-600 mb-4"
+                data-testid="add-product-trigger"
+              >
+                <span className="ml-2">+</span> {editProductId ? 'تعديل المنتج' : 'إضافة منتج جديد'}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle className="text-right">إضافة منتج جديد</DialogTitle>
+                <DialogTitle className="text-right">
+                  {editProductId ? 'تعديل المنتج' : 'إضافة منتج جديد'}
+                </DialogTitle>
                 <DialogDescription className="text-right">
-                  أدخل تفاصيل المنتج الجديد. يمكنك استخدام ماسح الباركود.
+                  أدخل تفاصيل المنتج. يمكنك استخدام ماسح الباركود.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -197,10 +247,26 @@ const Inventory = () => {
               </div>
               <div className="flex justify-between">
                 <DialogClose asChild>
-                  <Button variant="outline">إلغاء</Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setNewProduct({
+                        barcode: '',
+                        name: '',
+                        quantity: 0,
+                        price: 0,
+                      });
+                      setEditProductId(null);
+                    }}
+                  >
+                    إلغاء
+                  </Button>
                 </DialogClose>
-                <Button onClick={addProduct} className="bg-green-500 hover:bg-green-600">
-                  إضافة المنتج
+                <Button 
+                  onClick={addProduct} 
+                  className={editProductId ? "bg-blue-500 hover:bg-blue-600" : "bg-green-500 hover:bg-green-600"}
+                >
+                  {editProductId ? 'تحديث المنتج' : 'إضافة المنتج'}
                 </Button>
               </div>
             </DialogContent>
@@ -263,14 +329,7 @@ const Inventory = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">قائمة المنتجات</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={generatePDF}>
-                  طباعة
-                </Button>
-                <Button variant="outline">
-                  مشاركة
-                </Button>
-              </div>
+              <ActionButtons />
             </div>
             
             {products.length > 0 ? (
@@ -292,8 +351,21 @@ const Inventory = () => {
                       <TableCell>{product.quantity}</TableCell>
                       <TableCell>{product.price}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">تعديل</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500">حذف</Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product)}
+                        >
+                          تعديل
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-red-500"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          حذف
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
