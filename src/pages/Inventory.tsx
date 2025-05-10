@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import { Barcode } from 'lucide-react';
 
 // Product type
 interface Product {
@@ -26,6 +27,7 @@ const Inventory = () => {
     quantity: 0,
     price: 0,
   });
+  const [showBarcodeDialog, setShowBarcodeDialog] = useState(false);
 
   // Handle input change for new product
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,6 +68,24 @@ const Inventory = () => {
       title: "تم إضافة المنتج",
       description: "تمت إضافة المنتج بنجاح",
     });
+  };
+
+  // Simulate automatic barcode scanning
+  const scanBarcode = () => {
+    // In a real app, this would interact with a barcode scanner
+    const randomBarcode = Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+    
+    setNewProduct({
+      ...newProduct,
+      barcode: randomBarcode,
+    });
+    
+    toast({
+      title: "تم مسح الباركود",
+      description: `تم إدخال الباركود ${randomBarcode} بنجاح`,
+    });
+    
+    setShowBarcodeDialog(false);
   };
 
   // Generate PDF for printing
@@ -123,14 +143,24 @@ const Inventory = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <label htmlFor="barcode" className="text-right col-span-1">باركود</label>
-                  <Input
-                    id="barcode"
-                    name="barcode"
-                    value={newProduct.barcode}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                    dir="ltr"
-                  />
+                  <div className="col-span-3 flex">
+                    <Input
+                      id="barcode"
+                      name="barcode"
+                      value={newProduct.barcode}
+                      onChange={handleInputChange}
+                      className="flex-1"
+                      dir="ltr"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="mr-2"
+                      onClick={() => setShowBarcodeDialog(true)}
+                    >
+                      <Barcode size={18} />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <label htmlFor="name" className="text-right col-span-1">اسم المنتج</label>
@@ -172,6 +202,51 @@ const Inventory = () => {
                 <Button onClick={addProduct} className="bg-green-500 hover:bg-green-600">
                   إضافة المنتج
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Barcode Dialog */}
+          <Dialog open={showBarcodeDialog} onOpenChange={setShowBarcodeDialog}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="text-right">إضافة باركود</DialogTitle>
+                <DialogDescription className="text-right">
+                  اختر طريقة إضافة الباركود
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <Button 
+                  onClick={scanBarcode} 
+                  className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600"
+                >
+                  <Barcode size={18} />
+                  <span>مسح تلقائي للباركود</span>
+                </Button>
+                <p className="text-center text-gray-500">-- أو --</p>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <label htmlFor="manualBarcode" className="text-right col-span-1">الإدخال اليدوي</label>
+                  <div className="col-span-3 flex">
+                    <Input
+                      id="manualBarcode"
+                      value={newProduct.barcode}
+                      onChange={(e) => setNewProduct({...newProduct, barcode: e.target.value})}
+                      className="flex-1"
+                      dir="ltr"
+                      placeholder="أدخل الباركود يدويًا"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <DialogClose asChild>
+                  <Button variant="outline">إلغاء</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button className="bg-green-500 hover:bg-green-600">
+                    تأكيد
+                  </Button>
+                </DialogClose>
               </div>
             </DialogContent>
           </Dialog>

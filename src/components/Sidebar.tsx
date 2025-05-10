@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Folder, ArchiveX, File, FileArchive } from 'lucide-react';
+import { Folder, ArchiveX, File, FileArchive, Barcode } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface SidebarItemProps {
@@ -45,6 +45,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
           >
             {collapsed ? "→" : "←"}
           </button>
+        )}
+        
+        {/* Company Name */}
+        {!collapsed && (
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-bold text-blue-600">Easy Inventory</h2>
+            <p className="text-xs text-gray-500">نظام إدارة المخزون</p>
+          </div>
         )}
         
         <div className="space-y-1">
