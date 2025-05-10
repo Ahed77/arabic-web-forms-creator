@@ -2,8 +2,10 @@
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { FilePdf, Share, Printer } from 'lucide-react';
+import { ActionButtons } from '@/components/ActionButtons';
 
 const Reports = () => {
   const { toast } = useToast();
@@ -77,8 +79,12 @@ const Reports = () => {
           </div>
 
           <div className="text-right text-gray-500 text-sm">
-            <p>تقرير عن المخزون - 11/05/2025</p>
+            <p>تقرير عن المخزون - {new Date().toLocaleDateString('ar-SA')}</p>
             <p className="mt-4">نهاية التقرير</p>
+          </div>
+          
+          <div className="mt-6">
+            <ActionButtons />
           </div>
         </Card>
 
@@ -100,7 +106,7 @@ const Reports = () => {
             
             <div className="bg-orange-50 p-4 rounded-lg">
               <p className="text-sm text-orange-500">إجمالي الديون</p>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">300</p>
             </div>
           </div>
         </Card>

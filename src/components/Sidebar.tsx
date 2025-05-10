@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
         {/* Company Name */}
         {!collapsed && (
           <div className="mb-6 text-center">
-            <h2 className="text-xl font-bold text-blue-600">Easy Inventory</h2>
+            <h2 className="text-xl font-bold text-blue-600">مؤسسة إيزي</h2>
             <p className="text-xs text-gray-500">نظام إدارة المخزون</p>
           </div>
         )}
