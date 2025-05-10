@@ -1,16 +1,47 @@
 
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Sidebar from './Sidebar';
+import { Menu } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from './ui/button';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  const isMobile = useIsMobile();
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  
   return (
     <div className="flex h-screen" dir="rtl">
-      <Sidebar />
-      <main className="flex-1 overflow-auto p-6">
+      {/* Mobile menu toggle button */}
+      {isMobile && (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          className="fixed top-2 right-2 z-50 bg-white shadow-sm"
+        >
+          <Menu className="h-6 w-6" />
+        </Button>
+      )}
+      
+      {/* Sidebar with conditional display for mobile */}
+      <div className={`${isMobile ? 'fixed inset-y-0 right-0 z-40 transform transition-transform duration-300 ease-in-out' : ''} ${showMobileSidebar || !isMobile ? 'translate-x-0' : 'translate-x-full'}`}>
+        <Sidebar onClose={() => setShowMobileSidebar(false)} />
+      </div>
+      
+      {/* Mobile sidebar overlay */}
+      {isMobile && showMobileSidebar && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+      
+      {/* Main content */}
+      <main className={`flex-1 overflow-auto p-6 ${isMobile ? 'pt-16' : ''}`}>
         {children}
       </main>
     </div>
