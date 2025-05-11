@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,14 +8,15 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, UserPlus, Search, Calendar, Phone, Users } from 'lucide-react';
-import { ActionButtons } from '@/components/ActionButtons';
+import { Plus, UserPlus, Search, Calendar, Phone, Users, Save, FileText, DownloadCloud } from 'lucide-react';
 import { getFromStorage, saveToStorage } from '@/utils/localStorage';
+import jsPDF from 'jspdf';
 
 interface Debtor {
   id: string;
   name: string;
   phone: string;
+  religion?: string;
   type: 'customer' | 'supplier';
   totalDebt: number;
   totalPayment: number;
@@ -31,531 +31,212 @@ interface Transaction {
   notes: string;
 }
 
-const DEBTORS_STORAGE_KEY = 'debts-debtors';
-const TRANSACTIONS_STORAGE_KEY = 'debts-transactions';
+const DEBTORS_KEY = 'debts-debtors';
+const TRANSACTIONS_KEY = 'debts-transactions';
 
-const Debts = () => {
+export default function Debts() {
   const { toast } = useToast();
   const [debtors, setDebtors] = useState<Debtor[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
+  const [selectedDebtor, setSelectedDebtor] = useState<Debtor| null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [addDebtorName, setAddDebtorName] = useState('');
-  const [addDebtorPhone, setAddDebtorPhone] = useState('');
-  const [addDebtorType, setAddDebtorType] = useState<'customer' | 'supplier'>('customer');
-  const [showAddDebtorMethod, setShowAddDebtorMethod] = useState(false);
-  
-  const [transactionType, setTransactionType] = useState<'debt' | 'payment'>('debt');
-  const [transactionAmount, setTransactionAmount] = useState('');
-  const [transactionNotes, setTransactionNotes] = useState('');
-  
-  // Load data from local storage on initial render
+
+  // Add debtor states
+  const [addName, setAddName] = useState('');
+  const [addPhone, setAddPhone] = useState('');
+  const [addReligion, setAddReligion] = useState('');
+  const [addType, setAddType] = useState<'customer'|'supplier'>('customer');
+  const [showManual, setShowManual] = useState(false);
+
+  // Transaction states
+  const [trxType, setTrxType] = useState<'debt'|'payment'>('debt');
+  const [trxAmount, setTrxAmount] = useState('');
+  const [trxNotes, setTrxNotes] = useState('');
+
+  // Contacts picker
+  const pickContacts = async () => {
+    try {
+      // Web Contacts API
+      // @ts-ignore
+      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+      if (contacts.length) {
+        const c = contacts[0];
+        setAddName(c.name[0] || '');
+        setAddPhone(c.tel[0] || '');
+        setShowManual(true);
+      }
+    } catch (e) {
+      toast({ title: 'غير مدعوم', description: 'لا تدعم المتصفحات هذه الميزة حالياً', variant: 'destructive' });
+    }
+  };
+
+  // Load
   useEffect(() => {
-    const savedDebtors = getFromStorage<Debtor[]>(DEBTORS_STORAGE_KEY, []);
-    const savedTransactions = getFromStorage<Transaction[]>(TRANSACTIONS_STORAGE_KEY, []);
-    
-    setDebtors(savedDebtors.length > 0 ? savedDebtors : [
-      { 
-        id: '1', 
-        name: 'حسام اخي', 
-        phone: '+96777846767', 
-        type: 'customer',
-        totalDebt: 1500,
-        totalPayment: 1200
-      }
-    ]);
-    
-    setTransactions(savedTransactions.length > 0 ? savedTransactions : [
-      { 
-        id: '1', 
-        debtorId: '1', 
-        type: 'debt', 
-        amount: 1500, 
-        date: '2025-05-09', 
-        notes: 'باقه' 
-      },
-      { 
-        id: '2', 
-        debtorId: '1', 
-        type: 'payment', 
-        amount: 1200, 
-        date: '2025-05-09', 
-        notes: 'سداد حق باقه' 
-      }
-    ]);
+    const ds = getFromStorage<Debtor[]>(DEBTORS_KEY, []);
+    const ts = getFromStorage<Transaction[]>(TRANSACTIONS_KEY, []);
+    setDebtors(ds.length ? ds : []);
+    setTransactions(ts.length ? ts : []);
   }, []);
-  
-  // Save data to local storage whenever it changes
-  useEffect(() => {
-    saveToStorage(DEBTORS_STORAGE_KEY, debtors);
-  }, [debtors]);
-  
-  useEffect(() => {
-    saveToStorage(TRANSACTIONS_STORAGE_KEY, transactions);
-  }, [transactions]);
-  
-  const handleSelectDebtor = (debtor: Debtor) => {
-    setSelectedDebtor(debtor);
+
+  useEffect(() => saveToStorage(DEBTORS_KEY, debtors), [debtors]);
+  useEffect(() => saveToStorage(TRANSACTIONS_KEY, transactions), [transactions]);
+
+  const addDebtor = () => {
+    if (!addName.trim()) return toast({ title: 'خطأ', description: 'ادخل اسم المدين', variant: 'destructive' });
+    const d: Debtor = { id: Date.now().toString(), name: addName, phone: addPhone, religion: addReligion, type: addType, totalDebt:0, totalPayment:0 };
+    setDebtors([...debtors, d]);
+    toast({ title: 'تم', description: 'تمت إضافة المدين بنجاح' });
+    // reset
+    setAddName(''); setAddPhone(''); setAddReligion(''); setAddType('customer'); setShowManual(false);
   };
-  
-  const handleAddDebtor = () => {
-    if (!addDebtorName.trim()) {
-      toast({
-        title: "خطأ",
-        description: "يرجى إدخال اسم المدين",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Create new debtor
-    const newDebtor: Debtor = {
-      id: Date.now().toString(),
-      name: addDebtorName,
-      phone: addDebtorPhone,
-      type: addDebtorType,
-      totalDebt: 0,
-      totalPayment: 0
-    };
-    
-    setDebtors([...debtors, newDebtor]);
-    
-    toast({
-      title: "تمت الإضافة",
-      description: `تمت إضافة ${addDebtorName} بنجاح`
+
+  const addTransaction = () => {
+    if (!selectedDebtor) return toast({ title: 'خطأ', description: 'اختر مدين أولاً', variant:'destructive' });
+    const amt = parseFloat(trxAmount);
+    if (!amt || amt <= 0) return toast({ title: 'خطأ', description: 'أدخل مبلغ صحيح', variant:'destructive' });
+    const t: Transaction = { id: Date.now().toString(), debtorId: selectedDebtor.id, type: trxType, amount: amt, date: new Date().toISOString().split('T')[0], notes: trxNotes };
+    setTransactions([...transactions, t]);
+    // update totals
+    setDebtors(debtors.map(d => d.id === selectedDebtor.id ? { ...d,
+      totalDebt: trxType==='debt'? d.totalDebt+amt: d.totalDebt,
+      totalPayment: trxType==='payment'? d.totalPayment+amt: d.totalPayment
+    } : d));
+    toast({ title: 'تم', description: 'تمت إضافة المعاملة' });
+    setTrxType('debt'); setTrxAmount(''); setTrxNotes('');
+  };
+
+  const getBalance = (d: Debtor) => d.totalDebt - d.totalPayment;
+  const getPercent = (d: Debtor) => d.totalDebt===0?100: Math.round((d.totalPayment/d.totalDebt)*100);
+
+  const filtered = debtors.filter(d => d.name.includes(searchTerm)|| d.phone.includes(searchTerm));
+
+  const exportPDF = () => {
+    if (!selectedDebtor) return;
+    const doc = new jsPDF();
+    doc.text(`تقرير مدين: ${selectedDebtor.name}`, 10, 10);
+    doc.text(`الهاتف: ${selectedDebtor.phone}`, 10, 16);
+    if(selectedDebtor.religion) doc.text(`الديانة: ${selectedDebtor.religion}`, 10, 22);
+    let y=30;
+    transactions.filter(t=>t.debtorId===selectedDebtor.id).forEach(t=>{
+      doc.text(`${t.date} - ${t.type==='debt'?'دين':'دفعة'} - ${t.amount.toFixed(2)} - ${t.notes}`, 10, y);
+      y+=6;
     });
-    
-    // Reset form
-    setAddDebtorName('');
-    setAddDebtorPhone('');
-    setAddDebtorType('customer');
-    setShowAddDebtorMethod(false);
+    doc.save(`${selectedDebtor.name}_report.pdf`);
   };
-  
-  const handleAddTransaction = () => {
-    if (!selectedDebtor) {
-      toast({
-        title: "خطأ",
-        description: "يرجى اختيار مدين أولاً",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (!transactionAmount || parseFloat(transactionAmount) <= 0) {
-      toast({
-        title: "خطأ",
-        description: "يرجى إدخال مبلغ صحيح",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Create new transaction
-    const amount = parseFloat(transactionAmount);
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      debtorId: selectedDebtor.id,
-      type: transactionType,
-      amount: amount,
-      date: new Date().toISOString().split('T')[0],
-      notes: transactionNotes
-    };
-    
-    // Update transactions
-    setTransactions([...transactions, newTransaction]);
-    
-    // Update debtor totals
-    const updatedDebtors = debtors.map(debtor => {
-      if (debtor.id === selectedDebtor.id) {
-        return {
-          ...debtor,
-          totalDebt: transactionType === 'debt' ? debtor.totalDebt + amount : debtor.totalDebt,
-          totalPayment: transactionType === 'payment' ? debtor.totalPayment + amount : debtor.totalPayment
-        };
-      }
-      return debtor;
-    });
-    
-    setDebtors(updatedDebtors);
-    
-    // Update selected debtor
-    if (selectedDebtor) {
-      const updatedDebtor = updatedDebtors.find(d => d.id === selectedDebtor.id);
-      if (updatedDebtor) {
-        setSelectedDebtor(updatedDebtor);
-      }
-    }
-    
-    toast({
-      title: "تمت الإضافة",
-      description: `تمت إضافة معاملة جديدة بنجاح`
-    });
-    
-    // Reset form
-    setTransactionType('debt');
-    setTransactionAmount('');
-    setTransactionNotes('');
-  };
-  
-  const getBalance = (debtor: Debtor) => {
-    return debtor.totalDebt - debtor.totalPayment;
-  };
-  
-  const getPaymentPercentage = (debtor: Debtor) => {
-    if (debtor.totalDebt === 0) return 100;
-    return Math.round((debtor.totalPayment / debtor.totalDebt) * 100);
-  };
-  
-  // Filter debtors based on search term
-  const filteredDebtors = debtors.filter(debtor => 
-    debtor.name.includes(searchTerm) || debtor.phone.includes(searchTerm)
-  );
-  
-  return (
-    <Layout>
-      <div className="container mx-auto px-2 sm:px-4">
-        <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-500">إدارة الديون</h1>
-          <p className="text-sm sm:text-base text-gray-500">تتبع ديون العملاء والموردين.</p>
+
+  return (<Layout>
+    <div className="container mx-auto p-4" dir="rtl">
+      <header className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-primary">إدارة الديون المتقدمة</h1>
+      </header>
+
+      <div className="flex justify-center mb-4">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="bg-green-500 hover:bg-green-600 flex items-center gap-2"><Plus /> إضافة مدين</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>اختيار طريقة الإضافة</DialogTitle></DialogHeader>
+            {!showManual?
+              <div className="space-y-3">
+                <Button variant="outline" onClick={pickContacts} className="w-full flex items-center gap-2"><Users /> من جهات الاتصال</Button>
+                <Button variant="outline" onClick={()=>setShowManual(true)} className="w-full flex items-center gap-2"><UserPlus /> يدوياً</Button>
+              </div>
+            :
+              <div className="space-y-3">
+                <Input placeholder="الاسم" value={addName} onChange={e=>setAddName(e.target.value)} />
+                <Input placeholder="الهاتف" value={addPhone} onChange={e=>setAddPhone(e.target.value)} />
+                <Input placeholder="الديانة" value={addReligion} onChange={e=>setAddReligion(e.target.value)} />
+                <Select value={addType} onValueChange={v=>setAddType(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="customer">عميل</SelectItem>
+                    <SelectItem value="supplier">مورد</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button className="w-full bg-green-500 hover:bg-green-600" onClick={addDebtor}>إضافة</Button>
+              </div>
+            }
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-3" />
+          <Input placeholder="بحث..." className="pr-10" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} />
         </div>
-        
-        <div className="flex justify-center mb-6">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button 
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                إضافة مدين
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="text-center">طريقة إضافة المدين</DialogTitle>
-              </DialogHeader>
-              
-              {!showAddDebtorMethod ? (
-                <div className="space-y-4 mt-4">
-                  <Button 
-                    className="w-full flex items-center justify-center gap-2"
-                    variant="outline"
-                    onClick={() => toast({ title: "قريباً", description: "هذه الميزة قيد التطوير" })}
-                  >
-                    <Users className="h-4 w-4" />
-                    اختيار من جهات الاتصال
-                  </Button>
-                  
-                  <Button 
-                    className="w-full flex items-center justify-center gap-2"
-                    variant="outline"
-                    onClick={() => setShowAddDebtorMethod(true)}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    إضافة يدوياً
-                  </Button>
-                  
-                  <Button 
-                    className="w-full"
-                    variant="ghost"
-                    onClick={() => setShowAddDebtorMethod(false)}
-                  >
-                    إلغاء
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4 mt-4">
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">الاسم</label>
-                    </div>
-                    <Input 
-                      value={addDebtorName}
-                      onChange={(e) => setAddDebtorName(e.target.value)}
-                      placeholder="أدخل اسم المدين"
-                      dir="rtl"
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">الهاتف</label>
-                    </div>
-                    <Input 
-                      value={addDebtorPhone}
-                      onChange={(e) => setAddDebtorPhone(e.target.value)}
-                      placeholder="اختياري"
-                      dir="rtl"
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">النوع</label>
-                    </div>
-                    <Select 
-                      value={addDebtorType}
-                      onValueChange={(value) => setAddDebtorType(value as 'customer' | 'supplier')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="customer">عميل</SelectItem>
-                        <SelectItem value="supplier">مورد</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Button 
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    onClick={handleAddDebtor}
-                  >
-                    إضافة
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </div>
-        
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute right-3 top-3 text-gray-400" size={18} />
-            <Input 
-              placeholder="بحث بالاسم أو الهاتف..." 
-              className="pr-10 text-right"
-              dir="rtl"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        
-        {selectedDebtor ? (
+      </div>
+
+      {selectedDebtor? (
+        <>
           <Card className="mb-6 p-4">
-            <div className="flex justify-between items-center mb-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => setSelectedDebtor(null)}
-                className="text-sm"
-              >
-                العودة للقائمة
-              </Button>
-              <h2 className="text-xl font-bold text-blue-500">{selectedDebtor.name}</h2>
+            <div className="flex justify-between items-center mb-4">
+              <Button variant="ghost" onClick={()=>setSelectedDebtor(null)}>عودة</Button>
+              <h2 className="text-2xl font-semibold">{selectedDebtor.name}</h2>
             </div>
-            
-            <Sheet>
-              <SheetTrigger asChild>
-                <div className="flex justify-end mb-4">
-                  <Button className="bg-green-600 hover:bg-green-700 flex gap-1 items-center">
-                    <Plus size={16} />
-                    إضافة معاملة
-                  </Button>
-                </div>
-              </SheetTrigger>
-              <SheetContent side="top">
-                <SheetHeader>
-                  <SheetTitle className="text-center">إضافة معاملة لـ {selectedDebtor.name}</SheetTitle>
-                </SheetHeader>
-                <div className="space-y-4 mt-6">
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">النوع</label>
-                    </div>
-                    <Select
-                      value={transactionType}
-                      onValueChange={(value) => setTransactionType(value as 'debt' | 'payment')}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" onClick={exportPDF}><DownloadCloud /> PDF</Button>
+              <Sheet>
+                <SheetTrigger asChild><Button><FileText /> إضافة معاملة</Button></SheetTrigger>
+                <SheetContent side="top">
+                  <SheetHeader><SheetTitle>معاملة لـ {selectedDebtor.name}</SheetTitle></SheetHeader>
+                  <div className="space-y-3 mt-4">
+                    <Select value={trxType} onValueChange={v=>setTrxType(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="debt">دين (عليه)</SelectItem>
+                        <SelectItem value="debt">دين</SelectItem>
                         <SelectItem value="payment">دفعة</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">المبلغ</label>
-                    </div>
-                    <Input 
-                      type="number"
-                      value={transactionAmount}
-                      onChange={(e) => setTransactionAmount(e.target.value)}
-                      placeholder="0.00"
-                      dir="rtl"
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">الملاحظة</label>
-                    </div>
-                    <Input 
-                      value={transactionNotes}
-                      onChange={(e) => setTransactionNotes(e.target.value)}
-                      placeholder="e.g., فاتورة رقم 123, دفعة مقدمة..."
-                      dir="rtl"
-                    />
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-end mb-1">
-                      <label className="text-sm font-medium">التاريخ</label>
-                    </div>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-3 text-gray-400" size={18} />
-                      <Input 
-                        type="text"
-                        value={new Date().toLocaleDateString('ar-SA')}
-                        readOnly
-                        dir="rtl"
-                      />
+                    <Input type="number" placeholder="المبلغ" value={trxAmount} onChange={e=>setTrxAmount(e.target.value)} />
+                    <Input placeholder="ملاحظة" value={trxNotes} onChange={e=>setTrxNotes(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={()=>{setTrxType('debt'); setTrxAmount(''); setTrxNotes('');}}>إلغاء</Button>
+                      <Button onClick={addTransaction}>حفظ</Button>
                     </div>
                   </div>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      className="w-full"
-                      variant="outline"
-                      onClick={() => {
-                        setTransactionType('debt');
-                        setTransactionAmount('');
-                        setTransactionNotes('');
-                      }}
-                    >
-                      إلغاء
-                    </Button>
-                    <Button 
-                      className="w-full bg-blue-500 hover:bg-blue-600"
-                      onClick={handleAddTransaction}
-                    >
-                      إضافة المعاملة
-                    </Button>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            
-            <Card className="mb-6 p-4 bg-gray-50">
-              <h3 className="text-lg font-semibold text-right mb-4">ملخص الحساب المالي</h3>
-              <p className="text-gray-600 text-right mb-6">الرصيد الحالي ونسبة تسديد الديون لهذا العميل.</p>
-              
-              <div className="bg-gray-100 p-4 rounded-md mb-4">
-                <h4 className="text-right mb-2">مستحق عليه (مدين):</h4>
-                <p className="text-3xl font-bold text-red-500 text-center">
-                  {getBalance(selectedDebtor).toFixed(2)}
-                </p>
-              </div>
-              
-              <div className="flex justify-between mb-2">
-                <span>{selectedDebtor.totalDebt.toFixed(2)} :إجمالي الديون</span>
-                <span>{selectedDebtor.totalPayment.toFixed(2)} :إجمالي الدفعات</span>
-              </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                <div 
-                  className="bg-yellow-400 h-2.5 rounded-full" 
-                  style={{ width: `${getPaymentPercentage(selectedDebtor)}%` }}
-                ></div>
-              </div>
-              <p className="text-center mb-6">نسبة السداد: {getPaymentPercentage(selectedDebtor)}%</p>
-              
-              <ActionButtons />
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            <Card className="bg-gray-50 p-4 mb-6">
+              <h3 className="font-medium">الرصيد: {getBalance(selectedDebtor).toFixed(2)}</h3>
+              <p>سدد: {getPercent(selectedDebtor)}%</p>
             </Card>
-            
-            <h3 className="text-lg font-semibold text-right mb-4">سجل المعاملات</h3>
-            <p className="text-gray-600 text-right mb-4">جميع عمليات الديون والدفعات المسجلة (الأحدث أولاً).</p>
-            
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-right">التاريخ</TableHead>
-                    <TableHead className="text-right">الملاحظة</TableHead>
-                    <TableHead className="text-right">النوع</TableHead>
-                    <TableHead className="text-right">المبلغ</TableHead>
+
+            <Table>
+              <TableHeader><TableRow><TableHead>تاريخ</TableHead><TableHead>نوع</TableHead><TableHead>المبلغ</TableHead><TableHead>ملاحظة</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {transactions.filter(t=>t.debtorId===selectedDebtor.id).map(t=>(
+                  <TableRow key={t.id}>
+                    <TableCell>{new Date(t.date).toLocaleDateString('ar-SA')}</TableCell>
+                    <TableCell>{t.type}</TableCell>
+                    <TableCell>{t.amount.toFixed(2)}</TableCell>
+                    <TableCell>{t.notes}</TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions
-                    .filter(t => t.debtorId === selectedDebtor.id)
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>{new Date(transaction.date).toLocaleDateString('ar-SA')}</TableCell>
-                      <TableCell>{transaction.notes}</TableCell>
-                      <TableCell>
-                        <span className={transaction.type === 'debt' ? 'text-red-500' : 'text-green-500'}>
-                          {transaction.type === 'debt' ? 'دين' : 'دفعة'}
-                        </span>
-                      </TableCell>
-                      <TableCell>{transaction.amount.toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </>
+      ) : (
+        filtered.map(d=>(
+          <Card key={d.id} className="mb-3 p-3 hover:bg-gray-50 cursor-pointer" onClick={()=>setSelectedDebtor(d)}>
+            <div className="flex justify-between">
+              <div>
+                <p className="font-semibold">{d.name}</p>
+                <p className="text-sm"><Phone /> {d.phone}</p>
+                {d.religion && <p className="text-sm">ديانة: {d.religion}</p>}
+              </div>
+              <div className="text-right">
+                <p className={`${getBalance(d)>0?'text-red-500':'text-green-500'}`}>{getBalance(d).toFixed(2)}</p>
+                <p className="text-xs">{getPercent(d)}%</p>
+              </div>
             </div>
           </Card>
-        ) : (
-          <div>
-            {filteredDebtors.length > 0 ? (
-              filteredDebtors.map((debtor) => (
-                <Card 
-                  key={debtor.id} 
-                  className="mb-4 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => handleSelectDebtor(debtor)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${debtor.type === 'customer' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                        {debtor.type === 'customer' ? 'عميل' : 'مورد'}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-semibold">{debtor.name}</h3>
-                  </div>
-                  
-                  <div className="flex justify-between items-center mt-2">
-                    <div className="flex items-center gap-1">
-                      <Phone size={14} className="text-gray-500" />
-                      <span className="text-sm text-gray-500">{debtor.phone}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${getBalance(debtor) > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                        {getBalance(debtor).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {getPaymentPercentage(debtor)}% مسدد
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              ))
-            ) : (
-              <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
-                <p className="text-gray-500">لا يوجد مدينين مطابقين للبحث</p>
-                {searchTerm ? (
-                  <Button
-                    variant="ghost"
-                    className="mt-2 text-blue-500"
-                    onClick={() => setSearchTerm('')}
-                  >
-                    عرض جميع المدينين
-                  </Button>
-                ) : (
-                  <p className="text-sm text-gray-400 mt-2">قم بإضافة مدين جديد من خلال الزر أعلاه</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </Layout>
-  );
-};
-
-export default Debts;
+        ))
+      )}
+    </div>
+  </Layout>);
+}
