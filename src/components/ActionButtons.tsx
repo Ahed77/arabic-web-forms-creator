@@ -1,24 +1,33 @@
 
 import { Button } from '@/components/ui/button';
 import { Share, Printer, FileText } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActionButtonsProps {
   onShare?: () => void;
   onPrint?: () => void;
   onExportPDF?: () => void;
   className?: string;
+  contentType?: 'invoice' | 'inventory' | 'debt' | 'other';
 }
 
 export const ActionButtons = ({ 
   onShare, 
   onPrint, 
   onExportPDF,
-  className = ""
+  className = "",
+  contentType = "other"
 }: ActionButtonsProps) => {
-  const handleShare = onShare || defaultShareHandler;
-  const handlePrint = onPrint || defaultPrintHandler;
-  const handleExportPDF = onExportPDF || defaultExportPDFHandler;
+  const { toast } = useToast();
+  
+  const handleShare = onShare || (() => defaultShareHandler());
+  const handlePrint = onPrint || (() => defaultPrintHandler());
+  const handleExportPDF = onExportPDF || (() => defaultExportPDFHandler(toast));
+
+  // If content type is not an invoice, inventory report or debt invoice, don't show sharing/printing buttons
+  if (contentType !== 'invoice' && contentType !== 'inventory' && contentType !== 'debt') {
+    return null;
+  }
 
   return (
     <div className={`flex gap-2 justify-center ${className}`}>
@@ -55,7 +64,7 @@ const defaultPrintHandler = () => {
   window.print();
 };
 
-const defaultExportPDFHandler = () => {
+const defaultExportPDFHandler = (toast: any) => {
   toast({
     title: "جاري التحضير",
     description: "يتم تحضير ملف PDF للطباعة",

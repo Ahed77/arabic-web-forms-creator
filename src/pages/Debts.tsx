@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, UserPlus, Search, Calendar, Phone, Users, Save, FileText, DownloadCloud } from 'lucide-react';
 import { getFromStorage, saveToStorage } from '@/utils/localStorage';
 import jsPDF from 'jspdf';
+import { ActionButtons } from '@/components/ActionButtons';
 
 interface Debtor {
   id: string;
@@ -91,7 +92,7 @@ export default function Debts() {
   };
 
   const addTransaction = () => {
-    if (!selectedDebtor) return toast({ title: 'خطأ', description: 'اختر مدين أولاً', variant:'destructive' });
+    if (!selectedDebtor) return toast({ title: 'خطأ', description: 'اختر مدين أول��ً', variant:'destructive' });
     const amt = parseFloat(trxAmount);
     if (!amt || amt <= 0) return toast({ title: 'خطأ', description: 'أدخل مبلغ صحيح', variant:'destructive' });
     const t: Transaction = { id: Date.now().toString(), debtorId: selectedDebtor.id, type: trxType, amount: amt, date: new Date().toISOString().split('T')[0], notes: trxNotes };
@@ -218,6 +219,10 @@ export default function Debts() {
                 ))}
               </TableBody>
             </Table>
+            
+            <div className="mt-4">
+              <ActionButtons contentType="debt" />
+            </div>
           </Card>
         </>
       ) : (

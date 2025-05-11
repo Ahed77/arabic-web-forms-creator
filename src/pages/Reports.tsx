@@ -1,4 +1,3 @@
-
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -84,7 +83,7 @@ const Reports = () => {
           </div>
           
           <div className="mt-6">
-            <ActionButtons />
+            <ActionButtons contentType="inventory" />
           </div>
         </Card>
 

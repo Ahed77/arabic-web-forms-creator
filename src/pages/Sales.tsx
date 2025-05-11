@@ -318,7 +318,7 @@ const Sales = () => {
           </div>
           
           <div className="mt-4">
-            <ActionButtons />
+            <ActionButtons contentType="invoice" />
           </div>
           
           <div className="mt-4 flex justify-center">
