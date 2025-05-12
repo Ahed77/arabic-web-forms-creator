@@ -8,8 +8,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Clock } from 'lucide-react';
-import { ActionButtons } from '@/components/ActionButtons';
 import { getFromStorage, saveToStorage } from '@/utils/localStorage';
+import InvoicePreviewModal from '@/components/InvoicePreviewModal';
 
 interface Product {
   id: string;
@@ -47,6 +47,8 @@ const Sales = () => {
   const [price, setPrice] = useState<number>(0);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [savedInvoices, setSavedInvoices] = useState<Invoice[]>([]);
+  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
   
   // Load products from local storage on initial render
   useEffect(() => {
@@ -177,6 +179,41 @@ const Sales = () => {
     setInvoiceItems([]);
   };
 
+  const handleViewInvoicePreview = () => {
+    if (invoiceItems.length === 0) {
+      toast({
+        title: "خطأ",
+        description: "الفاتورة فارغة، قم بإضافة منتجات أولاً",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const previewInvoice: Invoice = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      items: [...invoiceItems],
+      total: totalInvoiceAmount
+    };
+
+    setCurrentInvoice(previewInvoice);
+    setIsInvoicePreviewOpen(true);
+  };
+
+  const handleViewSavedInvoices = () => {
+    if (savedInvoices.length === 0) {
+      toast({
+        title: "لا توجد فواتير",
+        description: "لا يوجد فواتير سابقة"
+      });
+    } else {
+      toast({ 
+        title: "الفواتير السابقة", 
+        description: `تم العثور على ${savedInvoices.length} فاتورة` 
+      });
+    }
+  };
+
   const totalInvoiceAmount = invoiceItems.reduce((sum, item) => sum + item.total, 0);
 
   return (
@@ -191,19 +228,7 @@ const Sales = () => {
           <Button 
             variant="outline" 
             className="flex items-center gap-2"
-            onClick={() => {
-              if (savedInvoices.length === 0) {
-                toast({
-                  title: "لا توجد فواتير",
-                  description: "لا يوجد فواتير سابقة"
-                });
-              } else {
-                toast({ 
-                  title: "الفواتير السابقة", 
-                  description: `تم العثور على ${savedInvoices.length} فاتورة` 
-                });
-              }
-            }}
+            onClick={handleViewSavedInvoices}
           >
             <Clock className="h-4 w-4" />
             عرض الفواتير السابقة ({savedInvoices.length})
@@ -317,11 +342,15 @@ const Sales = () => {
             </Table>
           </div>
           
-          <div className="mt-4">
-            <ActionButtons contentType="invoice" />
-          </div>
-          
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+            <Button 
+              className="bg-purple-500 hover:bg-purple-600 w-full sm:w-auto"
+              disabled={invoiceItems.length === 0}
+              onClick={handleViewInvoicePreview}
+            >
+              معاينة وطباعة الفاتورة
+            </Button>
+            
             <Button 
               className="bg-blue-500 hover:bg-blue-600 w-full sm:w-auto"
               disabled={invoiceItems.length === 0}
@@ -331,6 +360,14 @@ const Sales = () => {
             </Button>
           </div>
         </Card>
+        
+        {currentInvoice && (
+          <InvoicePreviewModal 
+            isOpen={isInvoicePreviewOpen}
+            onClose={() => setIsInvoicePreviewOpen(false)}
+            invoiceData={currentInvoice}
+          />
+        )}
       </div>
     </Layout>
   );
