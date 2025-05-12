@@ -42,7 +42,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
     : "max-w-3xl mx-auto p-4 shadow-lg";
 
   return (
-    <div className={`${bgClass} min-h-full`}>
+    <div className={`${bgClass} min-h-full`} dir="rtl">
       <div className={containerClass}>
         <Card className="border-2 border-blue-200 overflow-hidden">
           {/* Header */}
