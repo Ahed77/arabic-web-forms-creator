@@ -83,6 +83,19 @@ const SavedInvoices: React.FC<SavedInvoicesProps> = ({
     return new Date(dateString).toLocaleDateString('ar-SA');
   };
 
+  // Functions to handle pagination navigation
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -156,8 +169,8 @@ const SavedInvoices: React.FC<SavedInvoicesProps> = ({
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious 
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
-                        disabled={currentPage === 1} 
+                        onClick={goToPreviousPage}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                       />
                     </PaginationItem>
                     
@@ -174,8 +187,8 @@ const SavedInvoices: React.FC<SavedInvoicesProps> = ({
                     
                     <PaginationItem>
                       <PaginationNext 
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
-                        disabled={currentPage === totalPages} 
+                        onClick={goToNextPage}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
                       />
                     </PaginationItem>
                   </PaginationContent>
