@@ -15,15 +15,15 @@ const Layout = ({ children }: LayoutProps) => {
   
   return (
     <div className="flex h-screen" dir="rtl">
-      {/* Mobile menu toggle button */}
+      {/* Mobile menu toggle button - Updated with new styling */}
       {isMobile && (
         <Button 
           variant="ghost" 
           size="icon"
           onClick={() => setShowMobileSidebar(!showMobileSidebar)}
-          className="fixed top-2 right-2 z-50 bg-white shadow-sm"
+          className="fixed bottom-24 right-4 z-50 bg-white rounded-full shadow-lg h-12 w-12 flex items-center justify-center border border-gray-200"
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-6 w-6 text-blue-600" />
         </Button>
       )}
       
