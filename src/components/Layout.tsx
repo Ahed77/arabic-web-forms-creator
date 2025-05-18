@@ -15,8 +15,8 @@ const Layout = ({ children }: LayoutProps) => {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   
   return (
-    <div className="flex h-screen" dir="rtl">
-      {/* Mobile menu toggle button - Updated with new styling */}
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-indigo-50" dir="rtl">
+      {/* Mobile menu toggle button */}
       {isMobile && (
         <Button 
           variant="ghost" 
@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
           onClick={() => setShowMobileSidebar(!showMobileSidebar)}
           className="fixed bottom-24 right-4 z-50 bg-white rounded-full shadow-lg h-12 w-12 flex items-center justify-center border border-gray-200"
         >
-          <Menu className="h-6 w-6 text-blue-600" />
+          <Menu className="h-6 w-6 text-indigo-600" />
         </Button>
       )}
       
@@ -41,14 +41,16 @@ const Layout = ({ children }: LayoutProps) => {
       {/* Mobile sidebar overlay */}
       {isMobile && showMobileSidebar && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 backdrop-blur-sm"
           onClick={() => setShowMobileSidebar(false)}
         />
       )}
       
       {/* Main content */}
-      <main className={`flex-1 overflow-auto p-6 ${isMobile ? 'pt-16' : ''}`}>
-        {children}
+      <main className={`flex-1 overflow-auto p-4 sm:p-6 ${isMobile ? 'pt-16' : ''}`}>
+        <div className="container mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
