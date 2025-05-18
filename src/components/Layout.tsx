@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import { Menu } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from './ui/button';
+import { NotificationCenter } from './ui/notification-center';
 
 interface LayoutProps {
   children: ReactNode;
@@ -26,6 +27,11 @@ const Layout = ({ children }: LayoutProps) => {
           <Menu className="h-6 w-6 text-blue-600" />
         </Button>
       )}
+      
+      {/* Notification Center - Always visible */}
+      <div className="fixed top-4 left-4 z-50">
+        <NotificationCenter />
+      </div>
       
       {/* Sidebar with conditional display for mobile */}
       <div className={`${isMobile ? 'fixed inset-y-0 right-0 z-40 transform transition-transform duration-300 ease-in-out' : ''} ${showMobileSidebar || !isMobile ? 'translate-x-0' : 'translate-x-full'}`}>
