@@ -37,6 +37,7 @@ export const useSalesInvoice = () => {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [savedInvoices, setSavedInvoices] = useState<Invoice[]>([]);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [isSavedInvoicesOpen, setIsSavedInvoicesOpen] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
   
   // Total amount calculation
@@ -156,11 +157,14 @@ export const useSalesInvoice = () => {
         description: "لا يوجد فواتير سابقة"
       });
     } else {
-      toast({ 
-        title: "الفواتير السابقة", 
-        description: `تم العثور على ${savedInvoices.length} فاتورة` 
-      });
+      setIsSavedInvoicesOpen(true);
     }
+  };
+  
+  const handleDeleteInvoice = (invoiceId: string) => {
+    const updatedInvoices = savedInvoices.filter(invoice => invoice.id !== invoiceId);
+    setSavedInvoices(updatedInvoices);
+    saveToStorage(INVOICES_STORAGE_KEY, updatedInvoices);
   };
 
   return {
@@ -168,6 +172,7 @@ export const useSalesInvoice = () => {
     invoiceItems,
     savedInvoices,
     isInvoicePreviewOpen,
+    isSavedInvoicesOpen,
     currentInvoice,
     totalInvoiceAmount,
     handleAddToInvoice,
@@ -175,6 +180,8 @@ export const useSalesInvoice = () => {
     handleSaveInvoice,
     handleViewInvoicePreview,
     handleViewSavedInvoices,
-    setIsInvoicePreviewOpen
+    handleDeleteInvoice,
+    setIsInvoicePreviewOpen,
+    setIsSavedInvoicesOpen
   };
 };

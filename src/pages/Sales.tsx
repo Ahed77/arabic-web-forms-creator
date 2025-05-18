@@ -7,6 +7,7 @@ import InvoicePreviewModal from '@/components/InvoicePreviewModal';
 import ProductSelector from '@/components/sales/ProductSelector';
 import InvoiceTable from '@/components/sales/InvoiceTable';
 import InvoiceActions from '@/components/sales/InvoiceActions';
+import SavedInvoices from '@/components/sales/SavedInvoices';
 import { useSalesInvoice } from '@/hooks/useSalesInvoice';
 
 const Sales = () => {
@@ -15,6 +16,7 @@ const Sales = () => {
     invoiceItems,
     savedInvoices,
     isInvoicePreviewOpen,
+    isSavedInvoicesOpen,
     currentInvoice,
     totalInvoiceAmount,
     handleAddToInvoice,
@@ -22,7 +24,9 @@ const Sales = () => {
     handleSaveInvoice,
     handleViewInvoicePreview,
     handleViewSavedInvoices,
-    setIsInvoicePreviewOpen
+    handleDeleteInvoice,
+    setIsInvoicePreviewOpen,
+    setIsSavedInvoicesOpen
   } = useSalesInvoice();
 
   return (
@@ -75,6 +79,13 @@ const Sales = () => {
             invoiceData={currentInvoice}
           />
         )}
+        
+        <SavedInvoices 
+          invoices={savedInvoices}
+          isOpen={isSavedInvoicesOpen}
+          onClose={() => setIsSavedInvoicesOpen(false)}
+          onDeleteInvoice={handleDeleteInvoice}
+        />
       </div>
     </Layout>
   );

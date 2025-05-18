@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Product {
@@ -34,6 +34,13 @@ const ProductSelector = ({ products, onAddToInvoice }: ProductSelectorProps) => 
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<number>(0);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter products based on search term
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.barcode.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleProductSelect = (value: string) => {
     setSelectedProductId(value);
@@ -83,8 +90,30 @@ const ProductSelector = ({ products, onAddToInvoice }: ProductSelectorProps) => 
     setPrice(0);
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && filteredProducts.length > 0) {
+      // Automatically select the first product if Enter is pressed
+      const firstProduct = filteredProducts[0];
+      handleProductSelect(firstProduct.id);
+      
+      // Clear the search field after selection
+      setSearchTerm('');
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <div className="relative mb-2">
+        <Search className="absolute right-3 top-2.5 h-4 w-4 text-gray-400" />
+        <Input
+          placeholder="ابحث عن منتج (بالاسم أو الباركود)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
+          className="pr-10 text-right"
+        />
+      </div>
+
       <div className="flex justify-end">
         <label className="block text-sm font-medium mb-1">اختر منتج</label>
       </div>
@@ -93,7 +122,7 @@ const ProductSelector = ({ products, onAddToInvoice }: ProductSelectorProps) => 
           <SelectValue placeholder="-- اختر منتج --" />
         </SelectTrigger>
         <SelectContent>
-          {products.map(product => (
+          {filteredProducts.map(product => (
             <SelectItem key={product.id} value={product.id} disabled={product.available <= 0}>
               {product.name} (المتوفر: {product.available})
             </SelectItem>
