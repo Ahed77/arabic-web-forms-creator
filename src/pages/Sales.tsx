@@ -10,7 +10,7 @@ import InvoiceActions from '@/components/sales/InvoiceActions';
 import SavedInvoices from '@/components/sales/SavedInvoices';
 import { useSalesInvoice } from '@/hooks/useSalesInvoice';
 import { useSettings } from '@/contexts/SettingsContext';
-import { generateInvoicePDF } from '@/utils/pdfGenerator';
+import { generateInvoicePDF } from '@/utils/pdf';
 import { useToast } from '@/hooks/use-toast';
 
 const Sales = () => {

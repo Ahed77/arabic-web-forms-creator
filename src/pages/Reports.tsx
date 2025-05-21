@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FileText, Share, Printer } from 'lucide-react';
 import { ActionButtons } from '@/components/ActionButtons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { generateReportPDF } from '@/utils/pdfGenerator';
+import { generateReportPDF } from '@/utils/pdf';
 import { useSettings } from '@/contexts/SettingsContext';
 
 const Reports = () => {

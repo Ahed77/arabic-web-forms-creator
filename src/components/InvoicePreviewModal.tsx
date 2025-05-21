@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Printer, Share, FileText, Download } from "lucide-react";
 import InvoiceTemplate from './InvoiceTemplate';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/contexts/SettingsContext';
-import { generateInvoicePDF } from '@/utils/pdfGenerator';
+import { generateInvoicePDF } from '@/utils/pdf';
 
 interface InvoicePreviewModalProps {
   isOpen: boolean;
