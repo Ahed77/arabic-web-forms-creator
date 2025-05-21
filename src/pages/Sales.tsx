@@ -2,7 +2,7 @@
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, FileText } from 'lucide-react';
+import { Clock, FileText, Download } from 'lucide-react';
 import InvoicePreviewModal from '@/components/InvoicePreviewModal';
 import ProductSelector from '@/components/sales/ProductSelector';
 import InvoiceTable from '@/components/sales/InvoiceTable';
@@ -58,11 +58,11 @@ const Sales = () => {
         total: totalInvoiceAmount
       };
       
-      await generateInvoicePDF(tempInvoice, businessInfo);
+      const filename = await generateInvoicePDF(tempInvoice, businessInfo);
       
       toast({
         title: "تم التحضير",
-        description: "تم تحضير ملف PDF بنجاح",
+        description: `تم تصدير الفاتورة كملف PDF باسم ${filename}`,
       });
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -98,7 +98,7 @@ const Sales = () => {
             onClick={handleExportCurrentInvoiceToPDF}
             disabled={invoiceItems.length === 0}
           >
-            <FileText className="h-4 w-4 text-indigo-600" />
+            <Download className="h-4 w-4 text-indigo-600" />
             تصدير PDF
           </Button>
         </div>
@@ -124,6 +124,7 @@ const Sales = () => {
             isEmpty={invoiceItems.length === 0}
             onPreviewInvoice={handleViewInvoicePreview}
             onSaveInvoice={handleSaveInvoice}
+            onExportPDF={handleExportCurrentInvoiceToPDF}
           />
         </Card>
         
