@@ -16,6 +16,7 @@ interface InvoiceItem {
   quantity: number;
   price: number;
   total: number;
+  barcode?: string;
 }
 
 interface InvoiceData {
@@ -25,7 +26,7 @@ interface InvoiceData {
   total: number;
 }
 
-// Function to generate invoice PDF with proper Arabic support
+// Function to generate invoice PDF with proper Arabic support and simplified design
 export const generateInvoicePDF = async (
   invoiceData: InvoiceData, 
   businessInfo: BusinessInfo = {}
@@ -35,83 +36,137 @@ export const generateInvoicePDF = async (
     new Date(invoiceData.date).toLocaleDateString('ar-SA') : 
     new Date().toLocaleDateString('ar-SA');
   
-  // Generate HTML for PDF with improved styling
+  // Invoice ID or timestamp
+  const invoiceId = invoiceData.id || `INV-${Date.now().toString().substring(6)}`;
+  
+  // Generate simplified HTML for PDF based on the first screenshot design
   const htmlContent = `
     <div style="font-family: 'arabic', Arial, sans-serif; direction: rtl; padding: 20px; max-width: 800px; margin: 0 auto;">
-      <div style="background: linear-gradient(to right, #6366f1, #8b5cf6); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h1 style="font-size: 24px; margin-bottom: 10px;">${businessInfo?.name || 'اسم المتجر'}</h1>
-        <div style="font-size: 14px; margin-bottom: 5px;">${businessInfo?.address || 'عنوان المتجر'}</div>
-        <div style="font-size: 14px;">${businessInfo?.phone || 'رقم الهاتف'}</div>
-        ${businessInfo?.email ? `<div style="font-size: 14px;">${businessInfo.email}</div>` : ''}
-        <div style="margin-top: 15px; display: flex; justify-content: space-between;">
-          <div>رقم الفاتورة: ${invoiceData.id || Date.now().toString()}</div>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="font-size: 22px; margin-bottom: 5px;">فاتورة مبيعات</h1>
+      </div>
+      
+      <div style="margin-bottom: 20px; font-size: 14px; display: flex; justify-content: space-between;">
+        <div>
+          <div>الفاتورة: ${invoiceId}</div>
           <div>التاريخ: ${formattedDate}</div>
         </div>
+        ${businessInfo?.name ? `<div>${businessInfo.name}</div>` : ''}
       </div>
       
-      <div style="border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 20px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; margin-bottom: 10px; color: #4f46e5;">معلومات العميل</h2>
-        <div style="background-color: #eef2ff; padding: 10px; border-radius: 5px; border: 1px solid #e0e7ff;">الاسم: العميل</div>
-      </div>
-      
-      <div style="border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 20px; background-color: #ffffff;">
-        <h2 style="font-size: 18px; margin-bottom: 15px; color: #4f46e5; text-align: center;">تفاصيل الفاتورة</h2>
-        <table style="width: 100%; border-collapse: collapse; border-radius: 5px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <thead>
-            <tr style="background-color: #eef2ff;">
-              <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: right; color: #4f46e5;">المنتج</th>
-              <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: right; color: #4f46e5;">الكمية</th>
-              <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: right; color: #4f46e5;">السعر</th>
-              <th style="padding: 12px; border: 1px solid #e5e7eb; text-align: right; color: #4f46e5;">الإجمالي</th>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f9f9f9;">
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">المنتج</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">الكمية</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">سعر البيع</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invoiceData.items.map((item: InvoiceItem) => `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.productName}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.quantity}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.price.toFixed(2)}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${item.total.toFixed(2)}</td>
             </tr>
-          </thead>
-          <tbody>
-            ${invoiceData.items.map((item: any, index: number) => `
-              <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'}">
-                <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.productName}</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.quantity}</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.price.toFixed(2)}</td>
-                <td style="padding: 12px; border: 1px solid #e5e7eb;">${item.total.toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
+          `).join('')}
+        </tbody>
+      </table>
       
-      <div style="border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; padding: 20px; background-color: #f9fafb;">
-        <div style="text-align: left;">
-          ${businessInfo?.tax > 0 ? `
-            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-              <span style="color: #4b5563;">إجمالي المنتجات: </span>
-              <span style="font-weight: 500;">${invoiceData.total.toFixed(2)}</span>
-            </div>
-            <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-              <span style="color: #4b5563;">الضريبة (${businessInfo.tax}%): </span>
-              <span style="font-weight: 500;">${(invoiceData.total * businessInfo.tax / 100).toFixed(2)}</span>
-            </div>
-            <div style="height: 1px; background-color: #e5e7eb; margin: 10px 0;"></div>
-            <div style="font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; color: #4f46e5;">
-              <span>الإجمالي النهائي: </span>
-              <span>${(invoiceData.total * (1 + businessInfo.tax / 100)).toFixed(2)}</span>
-            </div>
-          ` : `
-            <div style="font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; color: #4f46e5;">
-              <span>الإجمالي: </span>
-              <span>${invoiceData.total.toFixed(2)}</span>
-            </div>
-          `}
-        </div>
-      </div>
-      
-      <div style="background: linear-gradient(to right, #6366f1, #8b5cf6); color: white; padding: 15px; border-radius: 0 0 10px 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div>شكراً لتعاملكم معنا</div>
-        ${businessInfo?.vatNumber ? `<div style="margin-top: 5px; font-size: 12px;">الرقم الضريبي: ${businessInfo.vatNumber}</div>` : ''}
+      <div style="margin-top: 20px; text-align: left; font-weight: bold;">
+        <div>الإجمالي الكلي: ${invoiceData.total.toFixed(2)}</div>
       </div>
     </div>
   `;
   
   return generatePDFFromHTML(htmlContent, {
-    title: `فاتورة رقم ${invoiceData.id || Date.now().toString()}`,
-    filename: `invoice-${invoiceData.id || Date.now()}.pdf`,
+    title: `فاتورة ${invoiceId}`,
+    filename: `invoice-${invoiceId}.pdf`,
+    pageSize: 'a4',
+  });
+};
+
+// Function to generate a customer statement PDF
+export const generateCustomerStatementPDF = async (
+  customerName: string,
+  customerPhone: string,
+  transactions: {
+    date: string;
+    description: string;
+    amount: number;
+    type: 'دفعة' | 'دين';
+  }[],
+  balance: number,
+  businessInfo: BusinessInfo = {}
+): Promise<string> => {
+  // Calculate totals
+  const paidTotal = transactions
+    .filter(t => t.type === 'دفعة')
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const debtTotal = transactions
+    .filter(t => t.type === 'دين')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Format current date
+  const formattedDate = new Date().toLocaleDateString('ar-SA');
+  const formattedTime = new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+  // Generate HTML content for the statement based on the fourth screenshot design
+  const htmlContent = `
+    <div style="font-family: 'arabic', Arial, sans-serif; direction: rtl; padding: 20px; max-width: 800px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="font-size: 22px; margin-bottom: 5px;">كشف حساب</h1>
+        <div style="font-size: 18px; margin-bottom: 10px;">${customerName}</div>
+      </div>
+      
+      <div style="margin-bottom: 20px; display: flex; justify-content: space-between;">
+        <div style="font-size: 14px;">
+          <div>مستحق عليه: ${balance.toFixed(2)}</div>
+          <div>هاتف العميل: ${customerPhone}</div>
+        </div>
+        <div style="font-size: 14px; text-align: left;">
+          <div>إجمالي الديون المسددة: ${paidTotal.toFixed(2)}</div>
+          <div>إجمالي الديون المستحقة: ${debtTotal.toFixed(2)}</div>
+        </div>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f9f9f9;">
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">التاريخ والوقت</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">الملاحظة</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">نوع المعاملة</th>
+            <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${transactions.map(transaction => `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${transaction.date}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${transaction.description}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: ${transaction.type === 'دفعة' ? 'green' : 'red'};">${transaction.type}</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${transaction.amount.toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      
+      <div style="margin-top: 30px; text-align: center; font-weight: bold;">
+        <div style="font-size: 16px;">مستحق عليه: ${balance.toFixed(2)}</div>
+      </div>
+      
+      <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
+        <div>تم إنشاؤه في ${formattedDate} ${formattedTime}</div>
+      </div>
+    </div>
+  `;
+  
+  return generatePDFFromHTML(htmlContent, {
+    title: `كشف حساب - ${customerName}`,
+    filename: `statement-${Date.now()}.pdf`,
+    pageSize: 'a4',
   });
 };

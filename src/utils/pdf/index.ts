@@ -1,5 +1,5 @@
 
 export { registerArabicFont } from './arabic-font-registration';
-export { generatePDFFromHTML, type PdfGenerationOptions } from './pdf-generator-core';
-export { generateInvoicePDF } from './invoice-pdf-generator';
-export { generateReportPDF } from './report-pdf-generator';
+export { generatePDFFromHTML, generateSimplePDF, type PdfGenerationOptions } from './pdf-generator-core';
+export { generateInvoicePDF, generateCustomerStatementPDF } from './invoice-pdf-generator';
+export { generateReportPDF, generateProductReportPDF } from './report-pdf-generator';
